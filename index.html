@@ -193,10 +193,55 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 <script>
 // ═══════════════════════════════════════════
-// STORAGE
+// STORAGE — JSONBin.io (classement en ligne)
+// Créez un compte gratuit sur jsonbin.io,
+// créez un bin avec {} et collez l'API key + bin ID ici.
+// Sans config : mode hors-ligne uniquement (localStorage).
 // ═══════════════════════════════════════════
-async function dbGet(k){try{const r=await window.storage.get(k,true);return r?JSON.parse(r.value):null}catch(e){return null}}
-async function dbSet(k,v){try{await window.storage.set(k,JSON.stringify(v),true)}catch(e){}}
+const JSONBIN_API_KEY = ''; // Collez votre X-Master-Key ici
+const JSONBIN_BIN_ID  = ''; // Collez votre Bin ID ici
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+let _dbCache = null;
+let _dbDirty = false;
+
+async function dbLoad(){
+  if(!JSONBIN_API_KEY||!JSONBIN_BIN_ID) return null;
+  try{
+    const r=await fetch(JSONBIN_URL+'/latest',{headers:{'X-Master-Key':JSONBIN_API_KEY}});
+    if(!r.ok) return null;
+    const j=await r.json();
+    _dbCache=j.record||{};
+    return _dbCache;
+  }catch(e){return null;}
+}
+
+async function dbSave(data){
+  if(!JSONBIN_API_KEY||!JSONBIN_BIN_ID) return;
+  try{
+    await fetch(JSONBIN_URL,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_API_KEY,'X-Bin-Versioning':'false'},
+      body:JSON.stringify(data)
+    });
+    _dbCache=data;
+  }catch(e){}
+}
+
+async function dbGet(k){
+  if(!JSONBIN_API_KEY||!JSONBIN_BIN_ID) return null;
+  if(!_dbCache) await dbLoad();
+  return _dbCache?_dbCache[k]||null:null;
+}
+
+async function dbSet(k,v){
+  if(!JSONBIN_API_KEY||!JSONBIN_BIN_ID) return;
+  if(!_dbCache) await dbLoad();
+  if(!_dbCache) _dbCache={};
+  _dbCache[k]=v;
+  await dbSave(_dbCache);
+}
+
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 let currentUser=lsGet('ss_session');
